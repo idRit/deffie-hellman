@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>deffie hellman</title>
+    <script src="/socket.io/socket.io.js"></script>
+</head>
+
+<body onload="getPandG()">
+
+    <button onclick="genPrivateKey()">Generate Private Key</button><br>
+    Private key: <p id="privatekey"></p>
+    <br>
+    Public Key Generated: <p id="keygen"></p>
+    <br>
+    Secret Key: <p id="seckey"></p>
+
+    <script>
+        var full = location.protocol + '//' + location.hostname + (location.port ? ':' + location.port : '');
+        let socket = io.connect(full);
+        let g = 0;
+        let p = 0;
+        let privateKey = 0;
+        let publicKey = 0;
+        let secretKey = 0;
+        let id = getRandomInt();
+
+        async function getPandG() {
+            let res = await fetch('/api/getPublicKeys');
+            let publicKeys = await res.json();
+            console.log(publicKeys);
+            g = publicKeys.G;
+            p = publicKeys.P;
+        }
+
+        function isPrime(num) {
+            for (let i = 2; i < num; i++) {
+                if (num % i === 0) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        function getRandomInt() {
+            let max = 10;
+            return Math.floor(Math.random() * Math.floor(max));
+        }
+
+        function getRandomPrimeNumber() {
+            let x = getRandomInt();
+            while (!isPrime(x)) {
+                x = getRandomInt();
+            }
+            return x;
+        }
+
+        function genPrivateKey() {
+            privateKey = getRandomPrimeNumber();
+            console.log(privateKey);
+            document.getElementById("privatekey").innerHTML = privateKey;
+            genKey();
+        }
+
+        function genKey() {
+            console.log(g);
+            console.log(typeof g);
+            publicKey = (g ** privateKey) % p;
+            document.getElementById("keygen").innerHTML = publicKey;
+            let object = {
+                id: id,
+                pk: publicKey
+            };
+            socket.emit('key', object);
+        }
+
+        socket.on('exc', (res) => {
+            if (res.length == 2) {
+                if (res[0].id !== id) {
+                    secretKey = (res[0].pk ** privateKey) % p;
+                } else {
+                    secretKey = (res[1].pk ** privateKey) % p;
+                }
+                document.getElementById("seckey").innerHTML = secretKey;
+            }
+        });
+
+    </script>
+</body>
+
+</html>
